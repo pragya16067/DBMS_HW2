@@ -27,9 +27,26 @@ public class Transaction  implements Runnable {
 					Random r = new Random();
 					System.out.println(Thread.currentThread().getName()+" (Start) " + FlightDB);  
 		        
-					int F = r.nextInt(1000);
+					int F = r.nextInt(100);
 					int C = r.nextInt(1000);
-					Reserve(F,C);
+					int ch = r.nextInt(10);
+					if(ch<=3) {
+						Reserve(F,C);
+					}
+					else if(ch==4) {
+						Cancel(F,C);
+					}
+					else if(ch==5) {
+						System.out.println("Flights booked for Customer "+C+" is/are "+My_Flights(C));
+					}
+					else if(ch==6 || ch==7) {
+						System.out.println("The total number of reservations made "+Total_Reservations());
+					}
+					else
+					{
+						int F2 = r.nextInt(1000);
+						Transfer(F,F2,C);
+					}
 		    	}
 		    	catch (Exception e) 
 		    	{
@@ -70,6 +87,7 @@ public class Transaction  implements Runnable {
 					customers.add(C_id);
 				}
 				FlightDB.put(F, customers);
+				
 			}
 			else
 			{
@@ -90,6 +108,8 @@ public class Transaction  implements Runnable {
 				flight.add(F);
 				ClientDB.put(C_id, flight);
 			}
+			
+			System.out.print("Reserved succesfully");
 		}
 	}
 	
