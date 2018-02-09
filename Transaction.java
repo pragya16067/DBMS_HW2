@@ -1,18 +1,17 @@
-package Hw2Part1;
+package Hw2Part2;
+
+
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Random;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.ReentrantLock;
 
-//import Hw2Part1.Database;
 
 public class Transaction  implements Runnable {
 	ReentrantLock lock;
 	
-	public static volatile HashMap<Integer, ArrayList<Integer> > FlightDB = new HashMap< Integer, ArrayList<Integer> > ();
-	public static volatile HashMap<Integer, ArrayList<Integer> > ClientDB = new HashMap< Integer, ArrayList<Integer> > ();
-	
+	public static volatile ArrayList<Flight> FlightDB = new ArrayList<Flight> ();
 	
 	public Transaction(ReentrantLock l) {
 		lock = l;
@@ -23,21 +22,24 @@ public class Transaction  implements Runnable {
 	      // Returns True if lock is free
 		    if(ans)
 		    {
+
 		    	try {
 					Random r = new Random();
-					System.out.println(Thread.currentThread().getName()+" (Start) " + FlightDB);  
+					//System.out.println(Thread.currentThread().getName()+" (Start) " + FlightDB);  
 		        
 					int F = r.nextInt(100);
 					int C = r.nextInt(1000);
 					int ch = r.nextInt(10);
 					if(ch<=3) {
+						System.out.println("Book seat in Flight "+F+" for customer "+C);
 						Reserve(F,C);
 					}
 					else if(ch==4) {
+						System.out.println("Cancel seat in Flight "+F+" for customer "+C);
 						Cancel(F,C);
 					}
 					else if(ch==5) {
-						System.out.println("Flights booked for Customer "+C+" is/are "+My_Flights(C));
+						System.out.println("Flights booked for Customer "+ C +" is/are "+My_Flights(C));
 					}
 					else if(ch==6 || ch==7) {
 						System.out.println("The total number of reservations made "+Total_Reservations());
@@ -45,6 +47,7 @@ public class Transaction  implements Runnable {
 					else
 					{
 						int F2 = r.nextInt(1000);
+						System.out.println("Transfer customer "+C+" in Flight "+F+" to flight "+F2);
 						Transfer(F,F2,C);
 					}
 		    	}
@@ -54,16 +57,27 @@ public class Transaction  implements Runnable {
 				}
 		    	finally 
 		    	{
-		    		 System.out.println(FlightDB);
-		    		 System.out.println(Thread.currentThread().getName()+" (End)");//prints thread name
+		    		 //System.out.println(FlightDB);
+		    		// System.out.println(Thread.currentThread().getName()+" (End)");//prints thread name
 		    		 lock.unlock();
 		    		 //notifyAll();
 		    	}
-		    	
 		    }
 		    else
 		    {
-		        System.out.println(Thread.currentThread().getName()+" waiting for lock");
+		    	while(!lock.tryLock())
+				{
+					try {
+						
+						Thread.sleep(1000);
+						//System.out.println(Thread.currentThread().getName() + "woke up from sleep.");
+						continue;
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+
+		       /* System.out.println(Thread.currentThread().getName()+" waiting for lock");
 		        try
 		        {
 		          Thread.sleep(1000);
@@ -71,124 +85,112 @@ public class Transaction  implements Runnable {
 		        catch(InterruptedException e)
 		        {
 		          e.printStackTrace();
-		        }
+		        }*/
 		    }
-		
+		return;
+		    
 				
 	}
 	
 	public synchronized void Reserve(int F, int C_id) {
-		synchronized(this) {
-			if(FlightDB.containsKey(F)) //This flight ID is valid
+		boolean found=false;
+		for(Flight f : FlightDB) {
+			if(f.F_id == F)
 			{
-				ArrayList<Integer> customers = FlightDB.get(F);
-				if(customers.size() <= 180) //Max 180 seats in an Airbus A320
-				{
-					customers.add(C_id);
+				found = true;
+				if(f.Customers.size() <= 180) {
+					f.Customers.add(C_id);
+					break;
 				}
-				FlightDB.put(F, customers);
-				
 			}
-			else
-			{
-				ArrayList<Integer> customers = new ArrayList<Integer> ();
-				customers.add(C_id);
-				FlightDB.put(F, customers);
-			}
-			
-			if(ClientDB.containsKey(C_id)) //This flight ID is valid
-			{
-				ArrayList<Integer> flight = ClientDB.get(F);
-				flight.add(F);
-				ClientDB.put(C_id, flight);
-			}
-			else
-			{
-				ArrayList<Integer> flight = new ArrayList<Integer> ();
-				flight.add(F);
-				ClientDB.put(C_id, flight);
-			}
-			
-			System.out.print("Reserved succesfully");
 		}
+		
+		if(!found)
+		{
+			Flight f= new Flight(F);
+			f.Customers.add(C_id);
+			FlightDB.add(f);
+		}
+		
+		System.out.println("Reserved succesfully");
+		return;
 	}
 	
 	public static synchronized void Cancel(int F, int C_id) {
-		if(FlightDB.containsKey(F) && ClientDB.containsKey(C_id)) //This flight ID is valid and customer id is valid
-		{
-			ArrayList<Integer> customers = FlightDB.get(F);
-			if(customers.contains(C_id))
+		boolean found=false;
+		for(Flight f : FlightDB) {
+			if(f.F_id == F)
 			{
-				int index = customers.indexOf(C_id);
-				customers.remove(index);
-				FlightDB.put(F, customers);
-			}
-			
-			ArrayList<Integer> flights = ClientDB.get(C_id);
-			if(flights.contains(F))
-			{
-				int index = flights.indexOf(F);
-				flights.remove(index);
-				ClientDB.put(C_id, flights);
+				found = true;
+				if(f.Customers.contains(C_id)) {
+					f.Customers.remove(C_id);
+					System.out.println("Cancelled Succesfully");
+					break;
+				}
 			}
 		}
-		else
+		if(!found)
 		{
 			System.out.println("No such Flight or No such Customer exists");
 		}
+		return;
+		
 	}
 	
 	public static ArrayList<Integer> My_Flights(int C_id) {
-		ArrayList<Integer> flights = new ArrayList<Integer> ();
-		if(ClientDB.containsKey(C_id))
-		{
-			flights = ClientDB.get(C_id);
-			return flights;
+		ArrayList<Integer> l = new ArrayList<Integer> ();
+		for(Flight f : FlightDB) {
+			if(f.Customers.contains(C_id)) {
+				l.add(f.F_id);
+				break;
+			}
 		}
-		return flights;
+		return l;
 	}
 	
 	public static int Total_Reservations() {
-		int ctr=0;
-		for(int k : FlightDB.keySet() ) {
-			ctr += FlightDB.get(k).size();
+		int tot=0;
+		for(Flight f : FlightDB) {
+			tot = tot + f.TotalBookings;
 		}
-		return ctr;
+		return tot;
 	}
 	
 	public static void Transfer(int F1, int F2, int c_id) {
-		if(FlightDB.containsKey(F1))
-		{
-			ArrayList<Integer> customers1 = FlightDB.get(F1);
-			int i=-1;
-			if(customers1.contains(c_id))
+		for(Flight f : FlightDB) {
+			if(f.F_id == F1)
 			{
-				i = customers1.indexOf(c_id);
-				if(FlightDB.containsKey(F2)) 
+				HashSet<Integer> customers1 = f.Customers;
+				if(customers1.contains(c_id))
 				{
-					ArrayList<Integer> customers2 = FlightDB.get(F2);
-					if(customers2.size() <= 180) //Max 180 
+					boolean foundF2 = false;
+					for(Flight f2 : FlightDB)
 					{
-						customers1.remove(i);
-						customers2.add(c_id);
-						FlightDB.put(F1, customers1);
-						FlightDB.put(F2, customers2);
+						if(f2.F_id == F2)
+						{
+							if(f2.Customers.size() <= 180)
+							{
+								customers1.remove(c_id);
+								f.TotalBookings = f.TotalBookings - 1;
+								f2.Customers.add(c_id);
+								f2.TotalBookings = f2.TotalBookings + 1;
+								System.out.println("Transfer Complete");
+								return;
+							}
+							break;
+						}
 					}
+					
 				}
-				else
-				{
-					ArrayList<Integer> f= new ArrayList<Integer> ();
-					customers1.remove(i);
-					f.add(c_id);
-					FlightDB.put(F1, customers1);
-					FlightDB.put(F2, f);
-				}
+				break;
 			}
 		}
+		
+		System.out.println("Transfer could not complete");
+		
 	}
 
 	public static void main(String[] args) throws InterruptedException{
-		Random r = new Random();
 		ReentrantLock rl = new ReentrantLock();
 		ExecutorService executor = Executors.newFixedThreadPool(5);//creating a pool of 5 threads
 		
@@ -197,6 +199,7 @@ public class Transaction  implements Runnable {
             Runnable worker = new Transaction(rl);
             executor.execute(worker);//calling execute method of ExecutorService  
         } 
+		
 		if(!executor.isTerminated())	
 		{	
 			executor.shutdown();	
