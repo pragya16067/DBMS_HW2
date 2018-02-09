@@ -26,29 +26,34 @@ public class Transaction  implements Runnable {
 		    	try {
 					Random r = new Random();
 					//System.out.println(Thread.currentThread().getName()+" (Start) " + FlightDB);  
-		        
-					int F = r.nextInt(100);
-					int C = r.nextInt(1000);
+					
+					int F = r.nextInt(20);
+					int C = r.nextInt(100);
 					int ch = r.nextInt(10);
 					if(ch<=3) {
 						System.out.println("Book seat in Flight "+F+" for customer "+C);
 						Reserve(F,C);
+						System.out.println();
 					}
 					else if(ch==4) {
 						System.out.println("Cancel seat in Flight "+F+" for customer "+C);
 						Cancel(F,C);
+						System.out.println();
 					}
 					else if(ch==5) {
 						System.out.println("Flights booked for Customer "+ C +" is/are "+My_Flights(C));
+						System.out.println();
 					}
 					else if(ch==6 || ch==7) {
 						System.out.println("The total number of reservations made "+Total_Reservations());
+						System.out.println();
 					}
 					else
 					{
-						int F2 = r.nextInt(1000);
+						int F2 = r.nextInt(20);
 						System.out.println("Transfer customer "+C+" in Flight "+F+" to flight "+F2);
 						Transfer(F,F2,C);
+						System.out.println();
 					}
 		    	}
 		    	catch (Exception e) 
@@ -92,40 +97,83 @@ public class Transaction  implements Runnable {
 				
 	}
 	
-	public synchronized void Reserve(int F, int C_id) {
-		boolean found=false;
+	public synchronized void Reserve(int F, int C_id) throws InterruptedException {
+		
 		for(Flight f : FlightDB) {
 			if(f.F_id == F)
 			{
-				found = true;
-				if(f.Customers.size() <= 180) {
-					f.Customers.add(C_id);
-					break;
+				
+				while(!f.CustLock.tryLock()) {
+					Thread.sleep(1000);
+				}
+				try {
+					f.CustLock.lock();
+					if(f.Customers.size() <= 180) {
+						f.Customers.add(C_id); 
+					}
+				}
+				finally	
+					{f.CustLock.unlock();}
+						
+				while(!f.Tlock.tryLock()) {
+					Thread.sleep(1000);
+				}
+				
+				try{
+					f.Tlock.lock();
+					f.TotalBookings = f.TotalBookings + 1;
+				}
+				finally {
+					f.Tlock.unlock();
 				}
 			}
-		}
+					
 		
+		}
+		/*
 		if(!found)
 		{
 			Flight f= new Flight(F);
 			f.Customers.add(C_id);
 			FlightDB.add(f);
+			f.TotalBookings = f.TotalBookings + 1;
 		}
-		
+		*/
 		System.out.println("Reserved succesfully");
 		return;
 	}
 	
-	public static synchronized void Cancel(int F, int C_id) {
+	public static synchronized void Cancel(int F, int C_id) throws InterruptedException {
 		boolean found=false;
 		for(Flight f : FlightDB) {
 			if(f.F_id == F)
 			{
-				found = true;
+				
 				if(f.Customers.contains(C_id)) {
-					f.Customers.remove(C_id);
-					System.out.println("Cancelled Succesfully");
-					break;
+					found = true;
+					while(!f.CustLock.tryLock()) {
+						Thread.sleep(1000);
+					}
+					try {
+						f.CustLock.lock();
+						f.Customers.remove(C_id);					
+					}
+					finally	
+						{f.CustLock.unlock();}
+					
+					//Also change the number of bookings
+					while(!f.Tlock.tryLock()) {
+						Thread.sleep(1000);
+					}
+					
+					try{
+						f.Tlock.lock();
+						f.TotalBookings = f.TotalBookings - 1;
+					}
+					finally {
+						f.Tlock.unlock();
+						System.out.println("Cancelled Succesfully");	
+					}
 				}
 			}
 		}
@@ -137,12 +185,23 @@ public class Transaction  implements Runnable {
 		
 	}
 	
-	public static ArrayList<Integer> My_Flights(int C_id) {
+	public static ArrayList<Integer> My_Flights(int C_id) throws InterruptedException {
 		ArrayList<Integer> l = new ArrayList<Integer> ();
 		for(Flight f : FlightDB) {
-			if(f.Customers.contains(C_id)) {
-				l.add(f.F_id);
-				break;
+			while(!f.CustLock.tryLock())
+			{
+				Thread.sleep(1000);
+			}
+			try {
+				f.CustLock.lock();
+				if(f.Customers.contains(C_id)) {
+					l.add(f.F_id);
+					break;
+				}
+			}
+			finally
+			{
+				f.CustLock.unlock();
 			}
 		}
 		return l;
@@ -191,10 +250,16 @@ public class Transaction  implements Runnable {
 	}
 
 	public static void main(String[] args) throws InterruptedException{
+		for (int i = 1; i <= 20; i++) 
+		{ 
+			Flight e=new Flight(i);
+			FlightDB.add(e);
+		}
+		
 		ReentrantLock rl = new ReentrantLock();
 		ExecutorService executor = Executors.newFixedThreadPool(5);//creating a pool of 5 threads
 		
-		for (int i = 0; i < 10; i++) 
+		for (int i = 0; i < 20; i++) 
 		{ 
             Runnable worker = new Transaction(rl);
             executor.execute(worker);//calling execute method of ExecutorService  
