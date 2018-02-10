@@ -27,9 +27,10 @@ public class Transaction  implements Runnable {
 					Random r = new Random();
 					//System.out.println(Thread.currentThread().getName()+" (Start) " + FlightDB);  
 					
-					int F = r.nextInt(20);
-					int C = r.nextInt(100);
+					int F = r.nextInt(2)+1;
+					int C = r.nextInt(3)+1;
 					int ch = r.nextInt(10);
+					
 					if(ch<=3) {
 						System.out.println("Book seat in Flight "+F+" for customer "+C);
 						Reserve(F,C);
@@ -50,7 +51,7 @@ public class Transaction  implements Runnable {
 					}
 					else
 					{
-						int F2 = r.nextInt(20);
+						int F2 = r.nextInt(2)+1;
 						System.out.println("Transfer customer "+C+" in Flight "+F+" to flight "+F2);
 						Transfer(F,F2,C);
 						System.out.println();
@@ -207,39 +208,85 @@ public class Transaction  implements Runnable {
 		return l;
 	}
 	
-	public static int Total_Reservations() {
+	public static int Total_Reservations() throws InterruptedException {
 		int tot=0;
 		for(Flight f : FlightDB) {
-			tot = tot + f.TotalBookings;
-		}
+			while(!f.Tlock.tryLock())
+			{
+				Thread.sleep(1000);
+			}
+			try 
+			{
+				f.Tlock.lock();
+				tot = tot + f.TotalBookings;
+			}
+			finally
+			{
+				f.Tlock.unlock();
+			}
+				
+		}	
 		return tot;
 	}
 	
-	public static void Transfer(int F1, int F2, int c_id) {
+	public static void Transfer(int F1, int F2, int c_id) throws InterruptedException {
 		for(Flight f : FlightDB) {
 			if(f.F_id == F1)
 			{
-				HashSet<Integer> customers1 = f.Customers;
-				if(customers1.contains(c_id))
-				{
-					boolean foundF2 = false;
-					for(Flight f2 : FlightDB)
+				while(!f.CustLock.tryLock()) {
+					Thread.sleep(1000);
+				}
+				try {
+					f.CustLock.lock();
+				
+					HashSet<Integer> customers1 = f.Customers;
+					if(customers1.contains(c_id))
 					{
-						if(f2.F_id == F2)
+					
+						for(Flight f2 : FlightDB)
 						{
-							if(f2.Customers.size() <= 180)
+							if(f2.F_id == F2)
 							{
-								customers1.remove(c_id);
-								f.TotalBookings = f.TotalBookings - 1;
-								f2.Customers.add(c_id);
-								f2.TotalBookings = f2.TotalBookings + 1;
-								System.out.println("Transfer Complete");
-								return;
+								while(!f2.CustLock.tryLock())
+								{
+									Thread.sleep(1000);
+								}
+								try {
+									f2.CustLock.lock();
+									if(f2.Customers.size() <= 180)
+									{
+										customers1.remove(c_id);
+										while(!f.Tlock.tryLock())
+										{
+											Thread.sleep(1000);
+										}
+										f.Tlock.lock();
+										f.TotalBookings = f.TotalBookings - 1;
+										f.Tlock.unlock();
+										
+										f2.Customers.add(c_id);
+										while(!f2.Tlock.tryLock())
+										{
+											Thread.sleep(1000);
+										}
+										f2.Tlock.lock();
+										f2.TotalBookings = f2.TotalBookings + 1;
+										f2.Tlock.unlock();
+										System.out.println("Transfer Complete");
+										return;
+									}
+								}
+								finally {
+									f2.CustLock.unlock();
+								}
+								break;
 							}
-							break;
 						}
 					}
 					
+				}
+				finally {
+					f.CustLock.unlock();
 				}
 				break;
 			}
