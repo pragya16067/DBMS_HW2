@@ -1,18 +1,20 @@
-package Hw2Part2;
+package Hw2Part1;
 
 import java.util.HashSet;
 import java.util.concurrent.locks.ReentrantLock;
 
 
 public class Flight {
-	int F_id;
-	int TotalBookings = 0;
-	ReentrantLock Tlock = new ReentrantLock();
-	HashSet<Integer> Customers = new HashSet<Integer> ();
-	ReentrantLock CustLock = new ReentrantLock();
+	public int F_id;
+	public int TotalBookings = 0;
+	public ReentrantLock Tlock = new ReentrantLock();
+	public HashSet<Integer> Customers = new HashSet<Integer> ();
+	public ReentrantLock CustLock = new ReentrantLock();
 	
 	
 	public Flight(int id) {
 		F_id = id;
 	}
 }
+
+
