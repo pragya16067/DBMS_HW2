@@ -13,6 +13,7 @@ public class Transaction  implements Runnable {
 	public ReentrantLock lock;
 	public static int Simulation_Time = 1000;
 	public static long startTime;
+	static int TransactionCtr=0;
 	
 	public static volatile ArrayList<Flight> FlightDB = new ArrayList<Flight> ();
 	
@@ -22,7 +23,7 @@ public class Transaction  implements Runnable {
 	
 	public synchronized void run() {
 		while(System.currentTimeMillis() - startTime <= 5000) { //repeat for some time
-			
+			TransactionCtr++;
 			while(!lock.tryLock())
 			{
 				try {
@@ -201,7 +202,7 @@ public class Transaction  implements Runnable {
 		
 		
 		ArrayList<Thread> threads = new ArrayList<Thread> ();
-		int no_of_transactions = 20;
+		int no_of_transactions = 5;
 		
 		ReentrantLock lock = new ReentrantLock();
 		
@@ -228,7 +229,14 @@ public class Transaction  implements Runnable {
 		}
 		
 		long et = System.currentTimeMillis();
-		System.out.println((et - st)/1000.0); 
+		System.out.println(TransactionCtr);
+		System.out.println((et - st)/1000.0);
+		
+		double time = (et - st)/1000.0;
+		double tp = TransactionCtr / time; 
+		
+		System.out.println("Throughput is = "+tp);
+        
         
 
 	}
