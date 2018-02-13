@@ -10,6 +10,7 @@ import Hw2Part2.Flight;
 
 public class Transaction implements Runnable{
 	static int Simulation_Time = 1000;
+	static long startTime;
 	
 	public static volatile ArrayList<Flight> FlightDB = new ArrayList<Flight> ();
 	
@@ -17,7 +18,7 @@ public class Transaction implements Runnable{
 	}
 	
 	public synchronized void run() {
-	      
+	      while(System.currentTimeMillis()-startTime <= 5000) {
 		    	try {
 					Random r = new Random();
 					
@@ -25,7 +26,7 @@ public class Transaction implements Runnable{
 					
 					int F = r.nextInt(20)+1;
 					int C = r.nextInt(10)+1;
-					int ch = r.nextInt(10);
+					int ch = r.nextInt(7);
 					
 					if(ch<=3) {
 						System.out.println("Book seat in Flight "+F+" for customer "+C);
@@ -57,6 +58,7 @@ public class Transaction implements Runnable{
 		    	{
 					e.printStackTrace();
 				}
+	      }
 		    	
 		/*try {
 			Thread.sleep(Simulation_Time);
@@ -246,7 +248,7 @@ public class Transaction implements Runnable{
 		}
 		
 		ArrayList<Thread> threads = new ArrayList<Thread> ();
-		int no_of_transactions = 40;
+		int no_of_transactions = 20;
 		
 		for (int i = 0; i < no_of_transactions; i++) 
 		{ 
@@ -254,6 +256,8 @@ public class Transaction implements Runnable{
             Thread t = new Thread(worker);
             threads.add(t); 
         } 
+		
+		startTime = System.currentTimeMillis();
 		
 		for (int i = 0; i < no_of_transactions; i++) 
 		{
@@ -264,6 +268,7 @@ public class Transaction implements Runnable{
 		for (int i = 0; i < no_of_transactions; i++) 
 		{
 			threads.get(i).join();
+			startTime = System.currentTimeMillis();
 			//System.out.println(Thread.currentThread().getName()+" has joined");
 		}
 		
