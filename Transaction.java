@@ -12,6 +12,7 @@ import Hw2Part1.Flight;
 public class Transaction  implements Runnable {
 	public ReentrantLock lock;
 	public static int Simulation_Time = 1000;
+	public static long startTime;
 	
 	public static volatile ArrayList<Flight> FlightDB = new ArrayList<Flight> ();
 	
@@ -20,17 +21,19 @@ public class Transaction  implements Runnable {
 	}
 	
 	public synchronized void run() {
-		
-		while(!lock.tryLock())
-		{
-			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+		while(System.currentTimeMillis() - startTime <= 5000) { //repeat for some time
+			
+			while(!lock.tryLock())
+			{
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 			}
-		}
-	      // Returns True if lock is free
+	      
+			// Returns True if lock is free
 		   
 		    
 
@@ -39,8 +42,9 @@ public class Transaction  implements Runnable {
 					//System.out.println(Thread.currentThread().getName()+" (Start) " + FlightDB);  
 		        
 					int F = r.nextInt(20)+1;
-					int C = r.nextInt(10);
+					int C = r.nextInt(20);
 					int ch = r.nextInt(10);
+					
 					if(ch<=3) {
 						System.out.println("Book seat in Flight "+F+" for customer "+C);
 						Reserve(F,C);
@@ -78,7 +82,7 @@ public class Transaction  implements Runnable {
 		    		 lock.unlock();
 		    		 //notifyAll();
 		    	}
-		   
+		}
 		return;
 		    
 				
@@ -115,8 +119,8 @@ public class Transaction  implements Runnable {
 		for(Flight f : FlightDB) {
 			if(f.F_id == F)
 			{
-				found = true;
 				if(f.Customers.contains(C_id)) {
+					found = true;
 					f.Customers.remove(C_id);
 					System.out.println("Cancelled Succesfully");
 					break;
@@ -191,12 +195,13 @@ public class Transaction  implements Runnable {
 		for (int i = 1; i <= 20; i++) 
 		{ 
 			Flight e=new Flight(i, r.nextInt(200));
+			e.Customers.add(i);
 			FlightDB.add(e);
 		}
 		
 		
 		ArrayList<Thread> threads = new ArrayList<Thread> ();
-		int no_of_transactions = 40;
+		int no_of_transactions = 20;
 		
 		ReentrantLock lock = new ReentrantLock();
 		
@@ -207,6 +212,8 @@ public class Transaction  implements Runnable {
             threads.add(t); 
         } 
 		
+		startTime = System.currentTimeMillis();
+		
 		for (int i = 0; i < no_of_transactions; i++) 
 		{
 			threads.get(i).start();
@@ -216,6 +223,7 @@ public class Transaction  implements Runnable {
 		for (int i = 0; i < no_of_transactions; i++) 
 		{
 			threads.get(i).join();
+			startTime = System.currentTimeMillis();
 			//System.out.println(Thread.currentThread().getName()+" has joined");
 		}
 		
