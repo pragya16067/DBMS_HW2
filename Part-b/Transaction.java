@@ -11,6 +11,7 @@ import Hw2Part2.Flight;
 public class Transaction implements Runnable{
 	static int Simulation_Time = 1000;
 	static long startTime;
+	static int TransactionCtr=0;
 	
 	public static volatile ArrayList<Flight> FlightDB = new ArrayList<Flight> ();
 	
@@ -21,7 +22,7 @@ public class Transaction implements Runnable{
 	      while(System.currentTimeMillis()-startTime <= 5000) {
 		    	try {
 					Random r = new Random();
-					
+					TransactionCtr++;
 					//System.out.println(Thread.currentThread().getName()+" (Start) " + FlightDB);  
 					
 					int F = r.nextInt(20)+1;
@@ -248,7 +249,7 @@ public class Transaction implements Runnable{
 		}
 		
 		ArrayList<Thread> threads = new ArrayList<Thread> ();
-		int no_of_transactions = 20;
+		int no_of_transactions = 10;
 		
 		for (int i = 0; i < no_of_transactions; i++) 
 		{ 
@@ -274,7 +275,13 @@ public class Transaction implements Runnable{
 		
 		
 		long et = System.currentTimeMillis();
-		System.out.println((et - st)/1000.0); 
+		System.out.println(TransactionCtr);
+		System.out.println((et - st)/1000.0);
+		
+		double time = (et - st)/1000.0;
+		double tp = TransactionCtr / time; 
+		
+		System.out.println("Throughput is = "+tp);
         
 
 	}
