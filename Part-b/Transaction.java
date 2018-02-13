@@ -4,31 +4,27 @@ package Hw2Part2;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Random;
-import java.util.concurrent.*;
-import java.util.concurrent.locks.ReentrantLock;
+
+import Hw2Part2.Flight;
 
 
-public class Transaction  implements Runnable {
-	ReentrantLock lock;
+public class Transaction implements Runnable{
+	static int Simulation_Time = 1000;
 	
 	public static volatile ArrayList<Flight> FlightDB = new ArrayList<Flight> ();
 	
-	public Transaction(ReentrantLock l) {
-		lock = l;
+	public Transaction() {
 	}
 	
 	public synchronized void run() {
-		boolean ans = lock.tryLock();
-	      // Returns True if lock is free
-		    if(ans)
-		    {
-
+	      
 		    	try {
 					Random r = new Random();
+					
 					//System.out.println(Thread.currentThread().getName()+" (Start) " + FlightDB);  
 					
-					int F = r.nextInt(2)+1;
-					int C = r.nextInt(3)+1;
+					int F = r.nextInt(200)+1;
+					int C = r.nextInt(10)+1;
 					int ch = r.nextInt(10);
 					
 					if(ch<=3) {
@@ -51,7 +47,7 @@ public class Transaction  implements Runnable {
 					}
 					else
 					{
-						int F2 = r.nextInt(2)+1;
+						int F2 = r.nextInt(20)+1;
 						System.out.println("Transfer customer "+C+" in Flight "+F+" to flight "+F2);
 						Transfer(F,F2,C);
 						System.out.println();
@@ -61,39 +57,14 @@ public class Transaction  implements Runnable {
 		    	{
 					e.printStackTrace();
 				}
-		    	finally 
-		    	{
-		    		 //System.out.println(FlightDB);
-		    		// System.out.println(Thread.currentThread().getName()+" (End)");//prints thread name
-		    		 lock.unlock();
-		    		 //notifyAll();
-		    	}
-		    }
-		    else
-		    {
-		    	while(!lock.tryLock())
-				{
-					try {
-						
-						Thread.sleep(1000);
-						//System.out.println(Thread.currentThread().getName() + "woke up from sleep.");
-						continue;
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
-				}
-
-		       /* System.out.println(Thread.currentThread().getName()+" waiting for lock");
-		        try
-		        {
-		          Thread.sleep(1000);
-		        }
-		        catch(InterruptedException e)
-		        {
-		          e.printStackTrace();
-		        }*/
-		    }
-		return;
+		    	
+		/*try {
+			Thread.sleep(Simulation_Time);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} */ 
+	return;
 		    
 				
 	}
@@ -107,39 +78,27 @@ public class Transaction  implements Runnable {
 				while(!f.CustLock.tryLock()) {
 					Thread.sleep(1000);
 				}
-				try {
-					f.CustLock.lock();
-					if(f.Customers.size() <= 180) {
-						f.Customers.add(C_id); 
-					}
-				}
-				finally	
-					{f.CustLock.unlock();}
-						
 				while(!f.Tlock.tryLock()) {
 					Thread.sleep(1000);
 				}
-				
-				try{
-					f.Tlock.lock();
+				try {
+					
+					if(f.Customers.size() <= 180) {
+						f.Customers.add(C_id); 
+					}
 					f.TotalBookings = f.TotalBookings + 1;
 				}
-				finally {
+				finally	
+				{
+					f.CustLock.unlock();
 					f.Tlock.unlock();
 				}
+				
 			}
 					
 		
 		}
-		/*
-		if(!found)
-		{
-			Flight f= new Flight(F);
-			f.Customers.add(C_id);
-			FlightDB.add(f);
-			f.TotalBookings = f.TotalBookings + 1;
-		}
-		*/
+		Thread.sleep(Simulation_Time);
 		System.out.println("Reserved succesfully");
 		return;
 	}
@@ -155,46 +114,41 @@ public class Transaction  implements Runnable {
 					while(!f.CustLock.tryLock()) {
 						Thread.sleep(1000);
 					}
-					try {
-						f.CustLock.lock();
-						f.Customers.remove(C_id);					
-					}
-					finally	
-						{f.CustLock.unlock();}
-					
 					//Also change the number of bookings
 					while(!f.Tlock.tryLock()) {
 						Thread.sleep(1000);
 					}
-					
-					try{
-						f.Tlock.lock();
+					try {
+						f.Customers.remove(C_id);
 						f.TotalBookings = f.TotalBookings - 1;
 					}
-					finally {
+					finally	
+						{f.CustLock.unlock();
 						f.Tlock.unlock();
-						System.out.println("Cancelled Succesfully");	
-					}
+						Thread.sleep(Simulation_Time);
+						System.out.println("Cancelled Succesfully");}
+					
 				}
 			}
 		}
 		if(!found)
 		{
+			Thread.sleep(Simulation_Time);
 			System.out.println("No such Flight or No such Customer exists");
 		}
 		return;
 		
 	}
 	
-	public static ArrayList<Integer> My_Flights(int C_id) throws InterruptedException {
+	public synchronized static ArrayList<Integer> My_Flights(int C_id) throws InterruptedException {
 		ArrayList<Integer> l = new ArrayList<Integer> ();
 		for(Flight f : FlightDB) {
 			while(!f.CustLock.tryLock())
 			{
 				Thread.sleep(1000);
 			}
-			try {
-				f.CustLock.lock();
+			try 
+			{
 				if(f.Customers.contains(C_id)) {
 					l.add(f.F_id);
 					break;
@@ -205,10 +159,11 @@ public class Transaction  implements Runnable {
 				f.CustLock.unlock();
 			}
 		}
+		Thread.sleep(Simulation_Time);
 		return l;
 	}
 	
-	public static int Total_Reservations() throws InterruptedException {
+	public synchronized static int Total_Reservations() throws InterruptedException {
 		int tot=0;
 		for(Flight f : FlightDB) {
 			while(!f.Tlock.tryLock())
@@ -217,7 +172,7 @@ public class Transaction  implements Runnable {
 			}
 			try 
 			{
-				f.Tlock.lock();
+				//f.Tlock.lock();
 				tot = tot + f.TotalBookings;
 			}
 			finally
@@ -225,20 +180,20 @@ public class Transaction  implements Runnable {
 				f.Tlock.unlock();
 			}
 				
-		}	
+		}
+		Thread.sleep(Simulation_Time);
 		return tot;
 	}
 	
-	public static void Transfer(int F1, int F2, int c_id) throws InterruptedException {
+	public synchronized static void Transfer(int F1, int F2, int c_id) throws InterruptedException {
 		for(Flight f : FlightDB) {
 			if(f.F_id == F1)
 			{
 				while(!f.CustLock.tryLock()) {
 					Thread.sleep(1000);
 				}
-				try {
-					f.CustLock.lock();
-				
+				try 
+				{
 					HashSet<Integer> customers1 = f.Customers;
 					if(customers1.contains(c_id))
 					{
@@ -252,7 +207,7 @@ public class Transaction  implements Runnable {
 									Thread.sleep(1000);
 								}
 								try {
-									f2.CustLock.lock();
+									
 									if(f2.Customers.size() <= 180)
 									{
 										customers1.remove(c_id);
@@ -260,7 +215,7 @@ public class Transaction  implements Runnable {
 										{
 											Thread.sleep(1000);
 										}
-										f.Tlock.lock();
+										
 										f.TotalBookings = f.TotalBookings - 1;
 										f.Tlock.unlock();
 										
@@ -269,9 +224,10 @@ public class Transaction  implements Runnable {
 										{
 											Thread.sleep(1000);
 										}
-										f2.Tlock.lock();
+										
 										f2.TotalBookings = f2.TotalBookings + 1;
 										f2.Tlock.unlock();
+										f.Tlock.lock();
 										System.out.println("Transfer Complete");
 										return;
 									}
@@ -287,36 +243,49 @@ public class Transaction  implements Runnable {
 				}
 				finally {
 					f.CustLock.unlock();
+					Thread.sleep(Simulation_Time);
 				}
 				break;
 			}
 		}
-		
+		Thread.sleep(Simulation_Time);
 		System.out.println("Transfer could not complete");
 		
 	}
 
 	public static void main(String[] args) throws InterruptedException{
-		for (int i = 1; i <= 20; i++) 
+		long st = System.currentTimeMillis();
+		for (int i = 1; i <= 200; i++) 
 		{ 
 			Flight e=new Flight(i);
 			FlightDB.add(e);
 		}
 		
-		ReentrantLock rl = new ReentrantLock();
-		ExecutorService executor = Executors.newFixedThreadPool(5);//creating a pool of 5 threads
+		ArrayList<Thread> threads = new ArrayList<Thread> ();
+		int no_of_transactions = 5;
 		
-		for (int i = 0; i < 20; i++) 
+		for (int i = 0; i < no_of_transactions; i++) 
 		{ 
-            Runnable worker = new Transaction(rl);
-            executor.execute(worker);//calling execute method of ExecutorService  
+            Runnable worker = new Transaction();
+            Thread t = new Thread(worker);
+            threads.add(t); 
         } 
 		
-		if(!executor.isTerminated())	
-		{	
-			executor.shutdown();	
-			executor.awaitTermination(5L,TimeUnit.SECONDS);
-		}	
+		for (int i = 0; i < no_of_transactions; i++) 
+		{
+			threads.get(i).start();
+			//System.out.println(Thread.currentThread().getName()+" has Started");
+		}
+		
+		for (int i = 0; i < no_of_transactions; i++) 
+		{
+			threads.get(i).join();
+			//System.out.println(Thread.currentThread().getName()+" has joined");
+		}
+		
+		
+		long et = System.currentTimeMillis();
+		System.out.println((et - st)/1000.0); 
         
 
 	}
