@@ -4,15 +4,14 @@ package Hw2Part1;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Random;
-import java.util.concurrent.*;
 import java.util.concurrent.locks.ReentrantLock;
 
-import Hw2Part2.Flight;
+import Hw2Part1.Flight;
 
 
 public class Transaction  implements Runnable {
 	public ReentrantLock lock;
-	public static int Simulation_Time = 2000;
+	public static int Simulation_Time = 1000;
 	
 	public static volatile ArrayList<Flight> FlightDB = new ArrayList<Flight> ();
 	
@@ -21,9 +20,8 @@ public class Transaction  implements Runnable {
 	}
 	
 	public synchronized void run() {
-		boolean ans = lock.tryLock();
 		
-		while(!ans)
+		while(!lock.tryLock())
 		{
 			try {
 				Thread.sleep(1000);
@@ -33,8 +31,8 @@ public class Transaction  implements Runnable {
 			}
 		}
 	      // Returns True if lock is free
-		    if(ans)
-		    {
+		   
+		    
 
 		    	try {
 					Random r = new Random();
@@ -80,44 +78,20 @@ public class Transaction  implements Runnable {
 		    		 lock.unlock();
 		    		 //notifyAll();
 		    	}
-		    }
-		    else
-		    {
-		    	while(!lock.tryLock())
-				{
-					try {
-						
-						Thread.sleep(1000);
-						//System.out.println(Thread.currentThread().getName() + "woke up from sleep.");
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
-				}
-
-		       /* System.out.println(Thread.currentThread().getName()+" waiting for lock");
-		        try
-		        {
-		          Thread.sleep(1000);
-		        }
-		        catch(InterruptedException e)
-		        {
-		          e.printStackTrace();
-		        }*/
-		    }
+		   
 		return;
 		    
 				
 	}
 	
 	public synchronized void Reserve(int F, int C_id) throws InterruptedException {
-		boolean found=false;
+	
 		for(Flight f : FlightDB) {
 			if(f.F_id == F)
 			{
-				found = true;
-				if(f.Customers.size() <= 180) {
+				
+				if(f.Customers.size() <= f.MaxCapacity) {
 					f.Customers.add(C_id);
-					f.TotalBookings++;
 					break;
 				}
 			}
@@ -144,7 +118,6 @@ public class Transaction  implements Runnable {
 				found = true;
 				if(f.Customers.contains(C_id)) {
 					f.Customers.remove(C_id);
-					f.TotalBookings--;
 					System.out.println("Cancelled Succesfully");
 					break;
 				}
@@ -174,7 +147,7 @@ public class Transaction  implements Runnable {
 	public static int Total_Reservations() throws InterruptedException {
 		int tot=0;
 		for(Flight f : FlightDB) {
-			tot = tot + f.TotalBookings;
+			tot = tot + f.Customers.size();
 		}
 		Thread.sleep(Simulation_Time);
 		return tot;
@@ -187,17 +160,14 @@ public class Transaction  implements Runnable {
 				HashSet<Integer> customers1 = f.Customers;
 				if(customers1.contains(c_id))
 				{
-					boolean foundF2 = false;
 					for(Flight f2 : FlightDB)
 					{
 						if(f2.F_id == F2)
 						{
-							if(f2.Customers.size() <= 180)
+							if(f2.Customers.size() <= f2.MaxCapacity)
 							{
 								customers1.remove(c_id);
-								f.TotalBookings = f.TotalBookings - 1;
 								f2.Customers.add(c_id);
-								f2.TotalBookings = f2.TotalBookings + 1;
 								Thread.sleep(Simulation_Time);
 								System.out.println("Transfer Complete");
 								return;
@@ -216,31 +186,38 @@ public class Transaction  implements Runnable {
 	}
 
 	public static void main(String[] args) throws InterruptedException{
+		Random r = new Random();
 		long st = System.currentTimeMillis();
 		for (int i = 1; i <= 20; i++) 
 		{ 
-			Flight e=new Flight(i);
+			Flight e=new Flight(i, r.nextInt(200));
 			FlightDB.add(e);
 		}
 		
-		ReentrantLock rl = new ReentrantLock();
-		//ExecutorService executor = Executors.newFixedThreadPool(5);//creating a pool of 5 threads
 		
-		for (int i = 0; i < 25; i++) 
+		ArrayList<Thread> threads = new ArrayList<Thread> ();
+		int no_of_transactions = 40;
+		
+		ReentrantLock lock = new ReentrantLock();
+		
+		for (int i = 0; i < no_of_transactions; i++) 
 		{ 
-            Runnable worker = new Transaction(rl);
+            Runnable worker = new Transaction(lock);
             Thread t = new Thread(worker);
-            t.start();
-            t.join();
-            //executor.execute(worker);//calling execute method of ExecutorService  
+            threads.add(t); 
         } 
 		
+		for (int i = 0; i < no_of_transactions; i++) 
+		{
+			threads.get(i).start();
+			//System.out.println(Thread.currentThread().getName()+" has Started");
+		}
 		
-		/*if(!executor.isTerminated())	
-		{	
-			executor.shutdown();	
-			executor.awaitTermination(5L,TimeUnit.SECONDS);
-		}*/	
+		for (int i = 0; i < no_of_transactions; i++) 
+		{
+			threads.get(i).join();
+			//System.out.println(Thread.currentThread().getName()+" has joined");
+		}
 		
 		long et = System.currentTimeMillis();
 		System.out.println((et - st)/1000.0); 
