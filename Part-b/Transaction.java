@@ -23,7 +23,7 @@ public class Transaction implements Runnable{
 					
 					//System.out.println(Thread.currentThread().getName()+" (Start) " + FlightDB);  
 					
-					int F = r.nextInt(200)+1;
+					int F = r.nextInt(20)+1;
 					int C = r.nextInt(10)+1;
 					int ch = r.nextInt(10);
 					
@@ -83,10 +83,9 @@ public class Transaction implements Runnable{
 				}
 				try {
 					
-					if(f.Customers.size() <= 180) {
+					if(f.Customers.size() <= f.TotalCapacity) {
 						f.Customers.add(C_id); 
 					}
-					f.TotalBookings = f.TotalBookings + 1;
 				}
 				finally	
 				{
@@ -114,17 +113,13 @@ public class Transaction implements Runnable{
 					while(!f.CustLock.tryLock()) {
 						Thread.sleep(1000);
 					}
-					//Also change the number of bookings
-					while(!f.Tlock.tryLock()) {
-						Thread.sleep(1000);
-					}
+					
 					try {
-						f.Customers.remove(C_id);
-						f.TotalBookings = f.TotalBookings - 1;
+						if(!f.Customers.isEmpty())
+							f.Customers.remove(C_id);
 					}
 					finally	
 						{f.CustLock.unlock();
-						f.Tlock.unlock();
 						Thread.sleep(Simulation_Time);
 						System.out.println("Cancelled Succesfully");}
 					
@@ -166,18 +161,17 @@ public class Transaction implements Runnable{
 	public synchronized static int Total_Reservations() throws InterruptedException {
 		int tot=0;
 		for(Flight f : FlightDB) {
-			while(!f.Tlock.tryLock())
+			while(!f.CustLock.tryLock())
 			{
 				Thread.sleep(1000);
 			}
 			try 
 			{
-				//f.Tlock.lock();
-				tot = tot + f.TotalBookings;
+				tot = tot + f.Customers.size();
 			}
 			finally
 			{
-				f.Tlock.unlock();
+				f.CustLock.unlock();
 			}
 				
 		}
@@ -206,28 +200,17 @@ public class Transaction implements Runnable{
 								{
 									Thread.sleep(1000);
 								}
+								while(!f2.Tlock.tryLock())
+								{
+									Thread.sleep(1000);
+								}
 								try {
 									
-									if(f2.Customers.size() <= 180)
+									if(f2.Customers.size() <= f2.TotalCapacity)
 									{
 										customers1.remove(c_id);
-										while(!f.Tlock.tryLock())
-										{
-											Thread.sleep(1000);
-										}
-										
-										f.TotalBookings = f.TotalBookings - 1;
-										f.Tlock.unlock();
-										
 										f2.Customers.add(c_id);
-										while(!f2.Tlock.tryLock())
-										{
-											Thread.sleep(1000);
-										}
 										
-										f2.TotalBookings = f2.TotalBookings + 1;
-										f2.Tlock.unlock();
-										f.Tlock.lock();
 										System.out.println("Transfer Complete");
 										return;
 									}
@@ -254,15 +237,16 @@ public class Transaction implements Runnable{
 	}
 
 	public static void main(String[] args) throws InterruptedException{
+		Random r= new Random();
 		long st = System.currentTimeMillis();
-		for (int i = 1; i <= 200; i++) 
+		for (int i = 1; i <= 20; i++) 
 		{ 
-			Flight e=new Flight(i);
+			Flight e=new Flight(i,r.nextInt(200));
 			FlightDB.add(e);
 		}
 		
 		ArrayList<Thread> threads = new ArrayList<Thread> ();
-		int no_of_transactions = 5;
+		int no_of_transactions = 40;
 		
 		for (int i = 0; i < no_of_transactions; i++) 
 		{ 
