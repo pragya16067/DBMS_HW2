@@ -10,8 +10,8 @@ public class Flight {
 	public ReentrantLock Tlock = new ReentrantLock();
 	public HashSet<Integer> Customers = new HashSet<Integer> ();
 	public ReentrantLock CustLock = new ReentrantLock();
-	
-	
+	volatile int custlockmode =0;
+	volatile int tlockmode =0;
 	public Flight(int id, int TotalSpace) {
 		F_id = id;
 	}
