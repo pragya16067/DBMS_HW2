@@ -78,12 +78,14 @@ public class Transaction implements Runnable{
 			if(f.F_id == F)
 			{
 				
-				while(!f.CustLock.tryLock()) {
+				while(!f.CustLock.tryLock() && f.custlockmode ==0) {
 					Thread.sleep(1000);
 				}
-				while(!f.Tlock.tryLock()) {
+				f.custlockmode =-1;
+				while(!f.Tlock.tryLock() && f.tlockmode ==0) {
 					Thread.sleep(1000);
 				}
+				f.tlockmode =-1;
 				try {
 					
 					if(f.Customers.size() <= f.TotalCapacity) {
@@ -93,7 +95,9 @@ public class Transaction implements Runnable{
 				finally	
 				{
 					f.CustLock.unlock();
+					f.custlockmode = 0;
 					f.Tlock.unlock();
+					f.tlockmode = 0;
 				}
 				
 			}
@@ -113,16 +117,17 @@ public class Transaction implements Runnable{
 				
 				if(f.Customers.contains(C_id)) {
 					found = true;
-					while(!f.CustLock.tryLock()) {
+					while(!f.CustLock.tryLock() && f.custlockmode ==0) {
 						Thread.sleep(1000);
 					}
-					
+					f.custlockmode = -1;
 					try {
 						if(!f.Customers.isEmpty())
 							f.Customers.remove(C_id);
 					}
 					finally	
 						{f.CustLock.unlock();
+						f.custlockmode = 0;
 						Thread.sleep(Simulation_Time);
 						System.out.println("Cancelled Succesfully");}
 					
@@ -141,10 +146,11 @@ public class Transaction implements Runnable{
 	public synchronized static ArrayList<Integer> My_Flights(int C_id) throws InterruptedException {
 		ArrayList<Integer> l = new ArrayList<Integer> ();
 		for(Flight f : FlightDB) {
-			while(!f.CustLock.tryLock())
+			while(f.CustLock.isLocked() && f.custlockmode!=-1)
 			{
 				Thread.sleep(1000);
 			}
+			f.custlockmode += 1;
 			try 
 			{
 				if(f.Customers.contains(C_id)) {
@@ -154,7 +160,7 @@ public class Transaction implements Runnable{
 			}
 			finally
 			{
-				f.CustLock.unlock();
+				f.custlockmode-=1;
 			}
 		}
 		Thread.sleep(Simulation_Time);
@@ -164,9 +170,10 @@ public class Transaction implements Runnable{
 	public synchronized static int Total_Reservations() throws InterruptedException {
 		int tot=0;
 		for(Flight f : FlightDB) {
-			while(!f.CustLock.tryLock())
+			while(f.CustLock.isLocked() && f.custlockmode!=-1)
 			{
 				Thread.sleep(1000);
+				f.custlockmode+=1;
 			}
 			try 
 			{
@@ -174,7 +181,7 @@ public class Transaction implements Runnable{
 			}
 			finally
 			{
-				f.CustLock.unlock();
+				f.custlockmode-=1;
 			}
 				
 		}
@@ -186,9 +193,10 @@ public class Transaction implements Runnable{
 		for(Flight f : FlightDB) {
 			if(f.F_id == F1)
 			{
-				while(!f.CustLock.tryLock()) {
+				while(!f.CustLock.tryLock() && f.custlockmode==0) {
 					Thread.sleep(1000);
 				}
+				f.custlockmode =-1;
 				try 
 				{
 					HashSet<Integer> customers1 = f.Customers;
@@ -199,27 +207,30 @@ public class Transaction implements Runnable{
 						{
 							if(f2.F_id == F2)
 							{
-								while(!f2.CustLock.tryLock())
+								while(!f2.CustLock.tryLock() && f2.custlockmode==0)
 								{
 									Thread.sleep(1000);
 								}
-								while(!f2.Tlock.tryLock())
+								f2.custlockmode=-1;
+								while(f2.Tlock.isLocked() && f2.tlockmode!=-1)
 								{
 									Thread.sleep(1000);
 								}
+								f2.tlockmode += 1;
 								try {
 									
 									if(f2.Customers.size() <= f2.TotalCapacity)
 									{
 										customers1.remove(c_id);
 										f2.Customers.add(c_id);
-										
+										f2.tlockmode-=1;
 										System.out.println("Transfer Complete");
 										return;
 									}
 								}
 								finally {
 									f2.CustLock.unlock();
+									f2.custlockmode =0;
 								}
 								break;
 							}
@@ -229,6 +240,7 @@ public class Transaction implements Runnable{
 				}
 				finally {
 					f.CustLock.unlock();
+					f.custlockmode = 0;
 					Thread.sleep(Simulation_Time);
 				}
 				break;
@@ -287,4 +299,3 @@ public class Transaction implements Runnable{
 	}
 
 }
-
